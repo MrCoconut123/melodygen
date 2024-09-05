@@ -11,7 +11,7 @@ class DisplayGeneratedAudio extends StatefulWidget {
   final String audioUrl;
   final String prompt; // New prompt parameter
 
-  DisplayGeneratedAudio({required this.audioUrl, required this.prompt}); // Update constructor
+  DisplayGeneratedAudio({required this.audioUrl, this.prompt='example music'}); // Update constructor
 
   @override
   _DisplayGeneratedAudioState createState() => _DisplayGeneratedAudioState();

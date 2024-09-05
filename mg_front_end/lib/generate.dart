@@ -247,12 +247,20 @@ class _GenerateState extends State<Generate> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false, // This removes the back button
         backgroundColor: color7,
         title: Row(
           children: [
             Icon(Icons.music_note, color: Colors.white),
             SizedBox(width: 10),
-            Text("Melody Gen", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              "Melody Gen",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),

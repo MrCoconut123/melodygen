@@ -128,12 +128,20 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false, // This removes the back button
         backgroundColor: color7,
         title: Row(
           children: [
             Icon(Icons.music_note, color: Colors.white),
             SizedBox(width: 10),
-            Text("Melody Gen", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              "Melody Gen",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
@@ -174,13 +182,13 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             SizedBox(height: 30),
             ElevatedButton(
-              onPressed: _viewUploadedMusic,
+              onPressed: _viewSampleMusic,
               style: ElevatedButton.styleFrom(
                 backgroundColor: color4,
                 padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 20.0),
                 textStyle: TextStyle(fontSize: 16),
               ),
-              child: Text('View Uploaded Music'),
+              child: Text('View Sample Music', style: TextStyle(fontSize: 16)),
             ),
             SizedBox(height: 20),
             Expanded(
@@ -204,11 +212,15 @@ class _ProfilePageState extends State<ProfilePage> {
                             generatedMusic,
                             "No generated music found",
                             _addToFavorites,
+                            _removeFromGeneratedMusic,
+                            _removeFromFavorites, // Added unfavorite functionality
                           ),
                           _buildMusicList(
                             favoritedMusic,
                             "No favorited music found",
+                            null,
                             _removeFromFavorites,
+                            _removeFromFavorites, // Added unfavorite functionality
                           ),
                         ],
                       ),
@@ -244,7 +256,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _viewUploadedMusic() {
+  void _viewSampleMusic() {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -253,10 +265,33 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _removeFromGeneratedMusic(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentGenerated = prefs.getString('generatedMusic') ?? '{}';
+    final Map<String, dynamic> generatedMap = jsonDecode(currentGenerated);
+
+    if (generatedMap.containsKey(key)) {
+      generatedMap.remove(key);
+      await prefs.setString('generatedMusic', jsonEncode(generatedMap));
+      setState(() {
+        generatedMusic = generatedMap;
+      });
+      Fluttertoast.showToast(
+        msg: "Removed from generated music!",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.black,
+        textColor: Colors.white,
+      );
+    }
+  }
+
   Widget _buildMusicList(
       Map<String, dynamic> musicMap,
       String emptyMessage,
-      void Function(String) onFavoritePressed,
+      void Function(String)? onFavoritePressed,
+      void Function(String)? onDeletePressed,
+      void Function(String)? onUnfavoritePressed, // Added unfavorite callback
       ) {
     if (musicMap.isEmpty) {
       return Center(
@@ -277,67 +312,91 @@ class _ProfilePageState extends State<ProfilePage> {
         String date = musicMap.keys.elementAt(index);
         bool isFavorited = favoritedMusic.containsKey(date);
 
-        return Container(
-          decoration: BoxDecoration(
-            color: color5,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
+        return Dismissible(
+          key: Key(date),
+          direction: DismissDirection.endToStart,
+          onDismissed: (direction) {
+            if (onDeletePressed != null) {
+              onDeletePressed(date);
+            }
+          },
+          background: Container(
+            color: Colors.red,
+            alignment: Alignment.centerRight,
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Icon(Icons.delete, color: Colors.white),
           ),
-          margin: EdgeInsets.symmetric(vertical: 8.0),
-          child: ListTile(
-            contentPadding: EdgeInsets.all(16.0),
-            title: Text(
-              date,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                fontStyle: FontStyle.italic,
-                color: color1,
-              ),
-            ),
-            subtitle: Text(
-              musicMap[date]['prompt'] ?? 'No prompt available',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 16, color: color3),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (onFavoritePressed != null)
-                  IconButton(
-                    icon: Icon(
-                      isFavorited ? Icons.favorite : Icons.favorite_border,
-                      color: color2,
-                    ),
-                    onPressed: () => onFavoritePressed(date),
-                  ),
-                IconButton(
-                  icon: Icon(Icons.play_arrow, color: color2),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DisplayGeneratedAudio(
-                          audioUrl: musicMap[date]['url'] ?? '', prompt:musicMap[date]['prompt']
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.share, color: color2),
-                  onPressed: () {
-                    _shareTrack(musicMap[date]['url'] ?? '');
-                  },
+          child: Container(
+            decoration: BoxDecoration(
+              color: color5,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
                 ),
               ],
+            ),
+            margin: EdgeInsets.symmetric(vertical: 8.0),
+            child: ListTile(
+              contentPadding: EdgeInsets.all(16.0),
+              title: Text(
+                date,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontStyle: FontStyle.italic,
+                  color: color1,
+                ),
+              ),
+              subtitle: Text(
+                musicMap[date]['prompt'] ?? 'No prompt available',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 16, color: color3),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onFavoritePressed != null && !isFavorited)
+                    IconButton(
+                      icon: Icon(
+                        Icons.favorite_border,
+                        color: color2,
+                      ),
+                      onPressed: () => onFavoritePressed(date),
+                    ),
+                  if (onUnfavoritePressed != null && isFavorited)
+                    IconButton(
+                      icon: Icon(
+                        Icons.favorite,
+                        color: color2,
+                      ),
+                      onPressed: () => onUnfavoritePressed(date),
+                    ),
+                  IconButton(
+                    icon: Icon(Icons.play_arrow, color: color2),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DisplayGeneratedAudio(
+                            audioUrl: musicMap[date]['url'] ?? '',
+                            prompt: musicMap[date]['prompt'],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.share, color: color2),
+                    onPressed: () {
+                      _shareTrack(musicMap[date]['url'] ?? '');
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         );
